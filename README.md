@@ -2,141 +2,90 @@
 
 > Die Plattform für Gründer – organisiere dein Startup von der Idee bis zum Scale-up.
 
+**Stack:** Next.js 16 · React · Tailwind CSS · Supabase (Auth + DB + Storage)
+
 ---
 
-## Architektur
+## Projektstruktur
 
 ```
-startup-os/
-├── frontend/          # Next.js 14 (App Router) + Tailwind CSS
-│   ├── app/
-│   │   ├── page.tsx                    → Landing / Startseite
-│   │   ├── startups/new/page.tsx       → Formular: Startup erstellen
-│   │   └── startups/[id]/page.tsx      → Startup Dashboard
-│   ├── components/
-│   │   ├── StartupForm.tsx             → Formular-Komponente (Client)
-│   │   └── StartupDashboard.tsx        → Dashboard-Komponente
-│   └── lib/api.ts                      → API-Client
+rowa/
+├── app/                          # Next.js App Router
+│   ├── page.tsx                  → Landing / Redirect wenn eingeloggt
+│   ├── dashboard/page.tsx        → Startup-Übersicht
+│   ├── startups/
+│   │   ├── new/page.tsx          → Startup erstellen
+│   │   └── [id]/page.tsx         → Startup Dashboard + Kanban
+│   ├── auth/
+│   │   ├── register/page.tsx
+│   │   ├── login/page.tsx
+│   │   ├── verify-email/page.tsx
+│   │   ├── forgot-password/page.tsx
+│   │   └── reset-password/page.tsx
+│   └── account/page.tsx          → Profil, Passwort, Avatar
 │
-└── backend/           # Node.js + Express + TypeScript
-    └── src/
-        ├── index.ts                    → Server-Einstiegspunkt
-        ├── routes/startups.ts          → Startup CRUD Endpoints
-        ├── db/
-        │   ├── client.ts               → PostgreSQL Pool
-        │   └── schema.sql              → Datenbank-Schema
-        └── types.ts                    → Shared Types
+├── components/
+│   ├── NavBar.tsx
+│   ├── UserMenu.tsx
+│   ├── AuthForm.tsx
+│   ├── StartupForm.tsx
+│   ├── StartupDashboard.tsx
+│   ├── KanbanBoard.tsx
+│   ├── KanbanCard.tsx
+│   └── TaskModal.tsx
+│
+├── lib/
+│   ├── supabase.ts               → Supabase Client
+│   ├── api.ts                    → DB-Funktionen (Startups, Tasks)
+│   └── auth.ts                   → Auth-Funktionen
+│
+└── db/
+    └── schema.sql                → PostgreSQL Schema (in Supabase ausführen)
 ```
 
 ---
 
-## Datenbank-Struktur
+## Setup
 
-```sql
--- users
-id, email, name, created_at
+### 1. Supabase vorbereiten
 
--- startups
-id, user_id (FK), name, industry, business_model, stage, created_at, updated_at
-```
+- Neues Projekt auf [supabase.com](https://supabase.com) anlegen
+- **SQL Editor:** Inhalt von `db/schema.sql` einfügen und ausführen
+- **Table Editor:** RLS für `startups` und `tasks` deaktivieren
+- **Storage:** Neuen Bucket `avatars` anlegen (Public: ✓)
 
-**stage-Werte:** `idea` | `mvp` | `growth`
+### 2. Umgebungsvariablen
 
----
-
-## API Endpoints
-
-| Methode | Endpoint            | Beschreibung             |
-|---------|---------------------|--------------------------|
-| POST    | /api/startups       | Neues Startup erstellen  |
-| GET     | /api/startups/:id   | Startup laden            |
-| GET     | /api/startups?user_id= | Alle Startups eines Users |
-| GET     | /health             | Health-Check             |
-
-### POST /api/startups – Request Body
-```json
-{
-  "name": "Acme GmbH",
-  "industry": "fintech",
-  "business_model": "saas",
-  "stage": "idea",
-  "user_id": "uuid-des-users"
-}
-```
-
-### POST /api/startups – Response (201)
-```json
-{
-  "startup": {
-    "id": "uuid",
-    "name": "Acme GmbH",
-    "industry": "fintech",
-    "business_model": "saas",
-    "stage": "idea",
-    "created_at": "2026-03-15T10:00:00Z",
-    "updated_at": "2026-03-15T10:00:00Z"
-  }
-}
-```
-
----
-
-## UX Flow
-
-```
-Startseite (/)
-     │
-     ▼  Klick auf "Startup erstellen"
-Formular (/startups/new)
-     │
-     │  User füllt aus:
-     │  1. Startup Name (Freitext)
-     │  2. Branche (Dropdown)
-     │  3. Geschäftsmodell (Dropdown)
-     │  4. Stage (Card-Auswahl: Idea / MVP / Growth)
-     │
-     ▼  Submit → POST /api/startups
-Dashboard (/startups/:id)
-     │
-     │  Zeigt:
-     │  - Name + Stage Badge
-     │  - Info-Cards: Branche, Modell, Datum
-     │  - Platzhalter für zukünftige Module
-     │
-     ▼  (Nächste Module: Tasks, Milestones, Team …)
-```
-
----
-
-## Setup & Start
-
-### Voraussetzungen
-- Node.js 20+
-- PostgreSQL
-
-### Backend
 ```bash
-cd backend
-cp .env.example .env          # DATABASE_URL anpassen
-npm install
-npm run db:migrate            # Schema in DB anlegen
-npm run dev                   # Startet auf :4000
-```
-
-### Frontend
-```bash
-cd frontend
 cp .env.local.example .env.local
-npm install
-npm run dev                   # Startet auf :3000
 ```
+
+`.env.local` befüllen:
+```
+NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY=sb_publishable_...
+```
+
+### 3. Starten
+
+```bash
+npm install
+npm run dev   # → http://localhost:3000
+```
+
+---
+
+## Features
+
+- **Auth** – Registrierung (mit Name), Login, Passwort vergessen, E-Mail-Bestätigung
+- **Account** – Name/E-Mail ändern, Passwort ändern, Avatar hochladen
+- **Startups** – Erstellen mit Branche, Geschäftsmodell, Stage
+- **Kanban Board** – 5 Spalten, Drag & Drop, Tags, Enddatum
 
 ---
 
 ## Nächste Module (Roadmap)
 
-- [ ] Auth (NextAuth.js / Clerk)
-- [ ] Tasks & To-dos
 - [ ] Milestones & OKRs
 - [ ] Team Management
 - [ ] Investor-Updates

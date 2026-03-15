@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { getStartup, type Startup } from '@/lib/api';
 import StartupDashboard from '@/components/StartupDashboard';
+import KanbanBoard from '@/components/KanbanBoard';
 
 export default function StartupPage() {
   const { id } = useParams<{ id: string }>();
@@ -34,8 +35,15 @@ export default function StartupPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl">
-      <StartupDashboard startup={startup} />
+    <div className="space-y-10">
+      <div className="max-w-3xl">
+        <StartupDashboard startup={startup} />
+      </div>
+
+      <div>
+        <h2 className="text-xl font-bold mb-5">Taskboard</h2>
+        <KanbanBoard startupId={startup.id} />
+      </div>
     </div>
   );
 }
