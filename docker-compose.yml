@@ -6,6 +6,8 @@ services:
       args:
         NEXT_PUBLIC_SUPABASE_URL: https://fmmsunoewjygzipbenoh.supabase.co
         NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY: sb_publishable_NiqG0PCpsfwokR-2XqnNrQ_H3nPx3wG
+    environment:
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
     ports:
       - "3000:3000"
     restart: unless-stopped

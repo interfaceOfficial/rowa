@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import type { Startup } from '@/lib/api';
 
 const STAGE_CONFIG = {
@@ -62,9 +63,20 @@ export default function StartupDashboard({ startup }: Props) {
         />
       </div>
 
-      {/* Next Steps placeholder */}
-      <div className="rounded-2xl border border-dashed border-gray-300 p-6 text-center text-gray-400 text-sm">
-        Weitere Module (Tasks, Milestones, Team) werden hier erscheinen.
+      {/* Tools */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <Link
+          href={`/startups/${startup.id}/logo-generator`}
+          className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm hover:shadow-md hover:border-brand-300 transition-all group"
+        >
+          <div className="text-2xl mb-2">✦</div>
+          <p className="font-semibold text-sm group-hover:text-brand-600 transition-colors">Logo Generator</p>
+          <p className="text-xs text-gray-400 mt-0.5">KI-generiertes Logo in Minuten</p>
+        </Link>
+
+        <div className="rounded-2xl border border-dashed border-gray-300 p-5 text-center text-gray-400 text-sm flex items-center justify-center">
+          Weitere Module folgen …
+        </div>
       </div>
     </div>
   );
