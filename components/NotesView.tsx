@@ -219,7 +219,7 @@ export default function NotesView({ startupId, initialNoteId }: Props) {
   const [loading, setLoading] = useState(true);
 
   const [selectedId, setSelectedId]   = useState<string | null>(initialNoteId ?? null);
-  const [editMode, setEditMode]       = useState<'edit' | 'preview'>('edit');
+  const [editMode, setEditMode]       = useState<'edit' | 'preview' | 'split'>('split');
   const [draft, setDraft]             = useState({ title: '', content: '' });
   const [isDirty, setIsDirty]         = useState(false);
   const [saveStatus, setSaveStatus]   = useState<'saved' | 'saving' | 'unsaved'>('saved');
@@ -599,14 +599,15 @@ export default function NotesView({ startupId, initialNoteId }: Props) {
               </span>
 
               <div className="flex rounded-lg border border-gray-200 overflow-hidden">
-                {(['edit', 'preview'] as const).map((m) => (
+                {([['edit', '✏️'], ['split', '⬛⬜'], ['preview', '👁']] as const).map(([m, icon]) => (
                   <button
                     key={m}
                     onClick={() => setEditMode(m)}
-                    className={`px-3 py-1 text-xs font-medium transition-colors
+                    className={`px-2.5 py-1 text-xs font-medium transition-colors
                       ${editMode === m ? 'bg-gray-100 text-gray-800' : 'text-gray-500 hover:bg-gray-50'}`}
+                    title={m === 'edit' ? 'Nur Editor' : m === 'split' ? 'Split-Ansicht' : 'Nur Vorschau'}
                   >
-                    {m === 'edit' ? '✏️ Bearbeiten' : '👁 Vorschau'}
+                    {icon}
                   </button>
                 ))}
               </div>
@@ -631,25 +632,30 @@ export default function NotesView({ startupId, initialNoteId }: Props) {
             </span>
           </div>
 
-          {/* Formatting toolbar (edit mode only) */}
-          {editMode === 'edit' && (
+          {/* Formatting toolbar (hidden in preview-only mode) */}
+          {editMode !== 'preview' && (
             <FormatToolbar onInsert={insertMarkdown} onLinePrefix={insertLinePrefix} />
           )}
 
           {/* Content */}
-          <div className="flex-1 overflow-hidden flex flex-col">
-            {editMode === 'edit' ? (
+          <div className="flex-1 overflow-hidden flex">
+            {/* Editor pane */}
+            {editMode !== 'preview' && (
               <textarea
                 ref={textareaRef}
                 value={draft.content}
                 onChange={(e) => handleContentChange('content', e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder={'# Überschrift\n\nSchreibe hier in Markdown …\n\n- [ ] Aufgabe\n- **Fett**, *Kursiv*\n- `Inline Code`\n\n```\nCode Block\n```'}
-                className="flex-1 w-full px-8 py-5 text-sm font-mono leading-relaxed
-                           focus:outline-none resize-none bg-white text-gray-800"
+                className={`px-8 py-5 text-sm font-mono leading-relaxed
+                           focus:outline-none resize-none bg-white text-gray-800
+                           ${editMode === 'split' ? 'w-1/2 border-r border-gray-100' : 'flex-1'}`}
               />
-            ) : (
-              <div className="flex-1 overflow-y-auto px-8 py-6">
+            )}
+
+            {/* Preview pane */}
+            {editMode !== 'edit' && (
+              <div className={`overflow-y-auto px-8 py-6 ${editMode === 'split' ? 'w-1/2' : 'flex-1'}`}>
                 {draft.content ? (
                   <div className="prose prose-sm max-w-none
                                   prose-headings:font-bold prose-headings:text-gray-900
