@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { getUser, signOut } from '@/lib/auth';
+import { signOut } from '@/lib/auth';
+import { supabase } from '@/lib/supabase';
 import type { User } from '@supabase/supabase-js';
 
 export default function NavBar() {
@@ -11,7 +12,17 @@ export default function NavBar() {
   const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
-    getUser().then(setUser);
+    // Sofort aus lokalem Cache laden (kein Netzwerk-Request)
+    supabase.auth.getSession().then(({ data }) => {
+      setUser(data.session?.user ?? null);
+    });
+
+    // Auf Login/Logout-Events reagieren
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const handleSignOut = async () => {

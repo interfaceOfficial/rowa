@@ -34,6 +34,8 @@ export default function AuthForm({ mode }: Props) {
     try {
       if (mode === 'register') {
         await signUp(email, password);
+        router.push('/auth/verify-email');
+        return;
       } else {
         await signIn(email, password);
       }
@@ -103,6 +105,14 @@ export default function AuthForm({ mode }: Props) {
             <p className="rounded-lg bg-red-50 border border-red-200 px-4 py-2.5 text-sm text-red-600">
               {serverError}
             </p>
+          )}
+
+          {!isRegister && (
+            <div className="text-right -mt-2">
+              <Link href="/auth/forgot-password" className="text-xs text-brand-500 hover:underline">
+                Passwort vergessen?
+              </Link>
+            </div>
           )}
 
           <button
