@@ -30,6 +30,17 @@ export async function createStartup(payload: CreateStartupPayload): Promise<Star
   return data as Startup;
 }
 
+export async function getUserStartups(userId: string): Promise<Startup[]> {
+  const { data, error } = await supabase
+    .from('startups')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+
+  if (error) throw new Error(error.message);
+  return (data ?? []) as Startup[];
+}
+
 export async function getStartup(id: string): Promise<Startup> {
   const { data, error } = await supabase
     .from('startups')

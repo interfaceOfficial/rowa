@@ -9,7 +9,8 @@ import { signUp, signIn } from '@/lib/auth';
 import Link from 'next/link';
 
 const schema = z.object({
-  email: z.string().email('Ungültige E-Mail-Adresse'),
+  name:     z.string().min(1, 'Name ist erforderlich').optional(),
+  email:    z.string().email('Ungültige E-Mail-Adresse'),
   password: z.string().min(6, 'Mindestens 6 Zeichen'),
 });
 
@@ -29,17 +30,17 @@ export default function AuthForm({ mode }: Props) {
     formState: { errors, isSubmitting },
   } = useForm<FormData>({ resolver: zodResolver(schema) });
 
-  const onSubmit = async ({ email, password }: FormData) => {
+  const onSubmit = async ({ name, email, password }: FormData) => {
     setServerError('');
     try {
       if (mode === 'register') {
-        await signUp(email, password);
+        await signUp(email, password, name ?? '');
         router.push('/auth/verify-email');
         return;
       } else {
         await signIn(email, password);
       }
-      router.push('/startups/new');
+      router.push('/dashboard');
     } catch (err) {
       setServerError(err instanceof Error ? err.message : 'Ein Fehler ist aufgetreten.');
     }
@@ -62,6 +63,27 @@ export default function AuthForm({ mode }: Props) {
 
       <div className="rounded-2xl bg-white border border-gray-200 p-8 shadow-sm">
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+
+          {isRegister && (
+            <div>
+              <label className="block text-sm font-medium mb-1" htmlFor="name">
+                Name
+              </label>
+              <input
+                id="name"
+                type="text"
+                autoComplete="name"
+                {...register('name')}
+                placeholder="Max Mustermann"
+                className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm
+                           focus:outline-none focus:ring-2 focus:ring-brand-500
+                           placeholder:text-gray-400"
+              />
+              {errors.name && (
+                <p className="mt-1 text-xs text-red-500">{errors.name.message}</p>
+              )}
+            </div>
+          )}
 
           <div>
             <label className="block text-sm font-medium mb-1" htmlFor="email">
