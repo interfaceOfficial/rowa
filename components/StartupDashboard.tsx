@@ -66,6 +66,15 @@ export default function StartupDashboard({ startup }: Props) {
       {/* Tools */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <Link
+          href={`/startups/${startup.id}/notes`}
+          className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm hover:shadow-md hover:border-brand-300 transition-all group"
+        >
+          <div className="text-2xl mb-2">📝</div>
+          <p className="font-semibold text-sm group-hover:text-brand-600 transition-colors">Notizen</p>
+          <p className="text-xs text-gray-400 mt-0.5">Markdown-Notizen mit Ordnerstruktur</p>
+        </Link>
+
+        <Link
           href={`/startups/${startup.id}/roadmap`}
           className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm hover:shadow-md hover:border-brand-300 transition-all group"
         >

@@ -4,10 +4,10 @@ import { useMemo, useRef } from 'react';
 import type { RoadmapTask } from '@/lib/api';
 
 // ── Constants ──────────────────────────────────────────────────
-const DAY_PX = 28;      // pixels per day
+const DAY_PX = 32;      // pixels per day
 const ROW_H  = 44;      // task row height
 const HEAD_H = 56;      // month header height
-const LEFT_W = 260;     // fixed left column width
+const LEFT_W = 280;     // fixed left column width
 
 // ── Phase colours ──────────────────────────────────────────────
 const PHASE_COLORS: Record<string, { bar: string; header: string; text: string }> = {

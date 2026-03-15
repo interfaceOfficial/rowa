@@ -269,3 +269,62 @@ export function getRoadmapDocumentUrl(filePath: string): string {
   const { data } = supabase.storage.from('roadmap-docs').getPublicUrl(filePath);
   return data.publicUrl;
 }
+
+// ── Notes ──────────────────────────────────────────────────────
+
+export interface NoteFolder {
+  id: string;
+  startup_id: string;
+  parent_id: string | null;
+  name: string;
+  position: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Note {
+  id: string;
+  startup_id: string;
+  folder_id: string | null;
+  title: string;
+  content: string;
+  position: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function getNotes(startupId: string): Promise<Note[]> {
+  return apiFetch<Note[]>(`/api/db/notes?startup_id=${encodeURIComponent(startupId)}`);
+}
+
+export async function getNote(id: string): Promise<Note> {
+  return apiFetch<Note>(`/api/db/notes/${encodeURIComponent(id)}`);
+}
+
+export async function createNote(payload: { startup_id: string; folder_id?: string | null; title?: string }): Promise<Note> {
+  return apiFetch<Note>('/api/db/notes', { method: 'POST', body: JSON.stringify(payload) });
+}
+
+export async function updateNote(id: string, updates: Partial<Pick<Note, 'title' | 'content' | 'folder_id'>>): Promise<Note> {
+  return apiFetch<Note>(`/api/db/notes/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(updates) });
+}
+
+export async function deleteNote(id: string): Promise<void> {
+  await apiFetch(`/api/db/notes/${encodeURIComponent(id)}`, { method: 'DELETE' });
+}
+
+export async function getNoteFolders(startupId: string): Promise<NoteFolder[]> {
+  return apiFetch<NoteFolder[]>(`/api/db/note-folders?startup_id=${encodeURIComponent(startupId)}`);
+}
+
+export async function createNoteFolder(payload: { startup_id: string; parent_id?: string | null; name: string }): Promise<NoteFolder> {
+  return apiFetch<NoteFolder>('/api/db/note-folders', { method: 'POST', body: JSON.stringify(payload) });
+}
+
+export async function updateNoteFolder(id: string, updates: Partial<Pick<NoteFolder, 'name' | 'parent_id'>>): Promise<NoteFolder> {
+  return apiFetch<NoteFolder>(`/api/db/note-folders/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(updates) });
+}
+
+export async function deleteNoteFolder(id: string): Promise<void> {
+  await apiFetch(`/api/db/note-folders/${encodeURIComponent(id)}`, { method: 'DELETE' });
+}
