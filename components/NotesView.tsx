@@ -17,7 +17,72 @@ interface Props {
   initialNoteId?: string;
 }
 
-// ── Sidebar Item (recursive folder tree) ──────────────────────
+// ── Formatting Toolbar ─────────────────────────────────────────
+interface ToolbarProps {
+  onInsert: (before: string, after?: string, placeholder?: string) => void;
+  onLinePrefix: (prefix: string) => void;
+}
+
+const TOOLBAR_GROUPS = [
+  [
+    { label: 'H1', title: 'Überschrift 1', type: 'line' as const, prefix: '# ' },
+    { label: 'H2', title: 'Überschrift 2', type: 'line' as const, prefix: '## ' },
+    { label: 'H3', title: 'Überschrift 3', type: 'line' as const, prefix: '### ' },
+  ],
+  [
+    { label: 'B',  title: 'Fett',           type: 'wrap' as const, before: '**', after: '**', placeholder: 'Fetter Text' },
+    { label: 'I',  title: 'Kursiv',         type: 'wrap' as const, before: '*',  after: '*',  placeholder: 'Kursiver Text' },
+    { label: 'S',  title: 'Durchgestrichen', type: 'wrap' as const, before: '~~', after: '~~', placeholder: 'Text' },
+  ],
+  [
+    { label: '•',  title: 'Aufzählung',     type: 'line' as const, prefix: '- ' },
+    { label: '1.', title: 'Nummerierte Liste', type: 'line' as const, prefix: '1. ' },
+    { label: '☐',  title: 'Checkbox',       type: 'line' as const, prefix: '- [ ] ' },
+  ],
+  [
+    { label: '❝',  title: 'Zitat',          type: 'line' as const, prefix: '> ' },
+    { label: '`',  title: 'Inline Code',    type: 'wrap' as const, before: '`', after: '`', placeholder: 'code' },
+    { label: '```',title: 'Code Block',     type: 'wrap' as const, before: '```\n', after: '\n```', placeholder: 'code' },
+  ],
+  [
+    { label: '🔗', title: 'Link',           type: 'wrap' as const, before: '[', after: '](url)', placeholder: 'Linktext' },
+  ],
+];
+
+function FormatToolbar({ onInsert, onLinePrefix }: ToolbarProps) {
+  return (
+    <div className="flex items-center gap-0.5 px-4 py-1.5 border-b border-gray-100 bg-gray-50/60 flex-wrap">
+      {TOOLBAR_GROUPS.map((group, gi) => (
+        <div key={gi} className="flex items-center">
+          {gi > 0 && <div className="w-px h-4 bg-gray-200 mx-1.5" />}
+          {group.map((btn) => (
+            <button
+              key={btn.label}
+              title={btn.title}
+              onMouseDown={(e) => {
+                e.preventDefault(); // keep textarea focus
+                if (btn.type === 'line') {
+                  onLinePrefix(btn.prefix);
+                } else {
+                  onInsert(btn.before, btn.after, btn.placeholder);
+                }
+              }}
+              className={`px-2 py-1 rounded text-xs font-medium text-gray-500
+                          hover:bg-gray-200 hover:text-gray-800 transition-colors
+                          ${btn.label === 'B' ? 'font-bold' : ''}
+                          ${btn.label === 'I' ? 'italic' : ''}
+                          ${btn.label === 'S' ? 'line-through' : ''}`}
+            >
+              {btn.label}
+            </button>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── Folder Tree (recursive) ────────────────────────────────────
 interface TreeProps {
   folderId: string | null;
   depth: number;
@@ -112,6 +177,39 @@ function FolderTree({
   );
 }
 
+// ── Inline Create Input ────────────────────────────────────────
+function InlineInput({
+  icon, placeholder, onConfirm, onCancel,
+}: {
+  icon: string;
+  placeholder: string;
+  onConfirm: (value: string) => void;
+  onCancel: () => void;
+}) {
+  const [value, setValue] = useState('');
+  const ref = useRef<HTMLInputElement>(null);
+  useEffect(() => { ref.current?.focus(); }, []);
+
+  return (
+    <div className="flex items-center gap-1.5 px-2 py-1 mx-1 rounded-lg bg-white border border-brand-300 shadow-sm">
+      <span className="text-sm shrink-0">{icon}</span>
+      <input
+        ref={ref}
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        placeholder={placeholder}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') onConfirm(value.trim());
+          if (e.key === 'Escape') onCancel();
+        }}
+        className="flex-1 text-sm focus:outline-none bg-transparent min-w-0"
+      />
+      <button onClick={() => onConfirm(value.trim())} className="text-brand-500 hover:text-brand-700 text-xs font-bold shrink-0">✓</button>
+      <button onClick={onCancel} className="text-gray-400 hover:text-gray-600 text-xs shrink-0">✕</button>
+    </div>
+  );
+}
+
 // ── Main Component ─────────────────────────────────────────────
 export default function NotesView({ startupId, initialNoteId }: Props) {
   const router = useRouter();
@@ -120,21 +218,26 @@ export default function NotesView({ startupId, initialNoteId }: Props) {
   const [folders, setFolders] = useState<NoteFolder[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [selectedId, setSelectedId]       = useState<string | null>(initialNoteId ?? null);
-  const [editMode, setEditMode]           = useState<'edit' | 'preview'>('edit');
-  const [draft, setDraft]                 = useState({ title: '', content: '' });
-  const [isDirty, setIsDirty]             = useState(false);
-  const [saveStatus, setSaveStatus]       = useState<'saved' | 'saving' | 'unsaved'>('saved');
-  const [search, setSearch]               = useState('');
-  const [expandedFolders, setExpanded]    = useState<Set<string>>(new Set());
-  const [dragNoteId, setDragNoteId]       = useState<string | null>(null);
+  const [selectedId, setSelectedId]   = useState<string | null>(initialNoteId ?? null);
+  const [editMode, setEditMode]       = useState<'edit' | 'preview'>('edit');
+  const [draft, setDraft]             = useState({ title: '', content: '' });
+  const [isDirty, setIsDirty]         = useState(false);
+  const [saveStatus, setSaveStatus]   = useState<'saved' | 'saving' | 'unsaved'>('saved');
+  const [search, setSearch]           = useState('');
+  const [expandedFolders, setExpanded] = useState<Set<string>>(new Set());
+  const [dragNoteId, setDragNoteId]   = useState<string | null>(null);
   const [dragOverFolder, setDragOverFolder] = useState<string | null>(null);
   const [renamingFolder, setRenamingFolder] = useState<NoteFolder | null>(null);
-  const [renameValue, setRenameValue]     = useState('');
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [renameValue, setRenameValue] = useState('');
 
-  // Load data
+  // Inline create states
+  const [showNewNote, setShowNewNote]     = useState(false);
+  const [showNewFolder, setShowNewFolder] = useState(false);
+
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const saveTimer   = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ── Load data ──
   useEffect(() => {
     Promise.all([getNotes(startupId), getNoteFolders(startupId)]).then(([n, f]) => {
       setNotes(n);
@@ -152,9 +255,9 @@ export default function NotesView({ startupId, initialNoteId }: Props) {
     });
   }, [startupId, initialNoteId, router]);
 
-  // Sync draft when selected note changes
-  const selectNote = (id: string) => {
-    const note = notes.find((n) => n.id === id);
+  // ── Select note ──
+  const selectNote = (id: string, noteList = notes) => {
+    const note = noteList.find((n) => n.id === id);
     if (!note) return;
     setSelectedId(id);
     setDraft({ title: note.title, content: note.content });
@@ -163,7 +266,7 @@ export default function NotesView({ startupId, initialNoteId }: Props) {
     router.replace(`/startups/${startupId}/notes/${id}`);
   };
 
-  // Auto-save debounce
+  // ── Auto-save ──
   const save = useCallback(async () => {
     if (!selectedId) return;
     setSaveStatus('saving');
@@ -186,9 +289,8 @@ export default function NotesView({ startupId, initialNoteId }: Props) {
     setIsDirty(true);
   };
 
-  // Keyboard shortcuts in textarea
+  // ── Keyboard shortcuts ──
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    // Tab → insert 2 spaces
     if (e.key === 'Tab') {
       e.preventDefault();
       const ta = textareaRef.current!;
@@ -198,40 +300,93 @@ export default function NotesView({ startupId, initialNoteId }: Props) {
       handleContentChange('content', newContent);
       requestAnimationFrame(() => { ta.selectionStart = ta.selectionEnd = start + 2; });
     }
-    // Cmd/Ctrl + S → save
     if ((e.metaKey || e.ctrlKey) && e.key === 's') {
       e.preventDefault();
       save();
     }
+    if ((e.metaKey || e.ctrlKey) && e.key === 'b') {
+      e.preventDefault();
+      insertMarkdown('**', '**', 'Fetter Text');
+    }
+    if ((e.metaKey || e.ctrlKey) && e.key === 'i') {
+      e.preventDefault();
+      insertMarkdown('*', '*', 'Kursiver Text');
+    }
   };
 
-  // Actions
-  const handleCreateNote = async (folderId?: string | null) => {
-    const note = await createNote({ startup_id: startupId, folder_id: folderId ?? null });
-    setNotes((prev) => [...prev, note]);
-    selectNote(note.id);
+  // ── Formatting helpers ──
+  const insertMarkdown = (before: string, after = '', placeholder = 'text') => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    const start = ta.selectionStart;
+    const end   = ta.selectionEnd;
+    const selected = draft.content.substring(start, end);
+    const text = selected || placeholder;
+    const newContent = draft.content.substring(0, start) + before + text + after + draft.content.substring(end);
+    handleContentChange('content', newContent);
+    requestAnimationFrame(() => {
+      ta.focus();
+      if (selected) {
+        ta.selectionStart = start + before.length;
+        ta.selectionEnd   = start + before.length + text.length;
+      } else {
+        ta.selectionStart = start + before.length;
+        ta.selectionEnd   = start + before.length + placeholder.length;
+      }
+    });
+  };
+
+  const insertLinePrefix = (prefix: string) => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    const start     = ta.selectionStart;
+    const lineStart = draft.content.lastIndexOf('\n', start - 1) + 1;
+    const newContent = draft.content.substring(0, lineStart) + prefix + draft.content.substring(lineStart);
+    handleContentChange('content', newContent);
+    requestAnimationFrame(() => {
+      ta.focus();
+      ta.selectionStart = ta.selectionEnd = start + prefix.length;
+    });
+  };
+
+  // ── Create note (opens immediately) ──
+  const handleCreateNote = async (name: string, folderId?: string | null) => {
+    const title = name || 'Neue Notiz';
+    const note  = await createNote({ startup_id: startupId, folder_id: folderId ?? null, title });
+    const updated = [...notes, note];
+    setNotes(updated);
+    setShowNewNote(false);
+    // Open immediately without waiting for selectNote to find it in old state
+    setSelectedId(note.id);
+    setDraft({ title: note.title, content: note.content });
+    setIsDirty(false);
+    setSaveStatus('saved');
     setEditMode('edit');
-    setTimeout(() => textareaRef.current?.focus(), 100);
+    router.replace(`/startups/${startupId}/notes/${note.id}`);
+    setTimeout(() => textareaRef.current?.focus(), 50);
   };
 
+  // ── Create folder ──
+  const handleCreateFolder = async (name: string) => {
+    if (!name) { setShowNewFolder(false); return; }
+    const folder = await createNoteFolder({ startup_id: startupId, name });
+    setFolders((prev) => [...prev, folder]);
+    setExpanded((s) => new Set([...s, folder.id]));
+    setShowNewFolder(false);
+  };
+
+  // ── Delete note ──
   const handleDeleteNote = async () => {
     if (!selectedId) return;
     if (!confirm('Notiz wirklich löschen?')) return;
     await deleteNote(selectedId);
     const remaining = notes.filter((n) => n.id !== selectedId);
     setNotes(remaining);
-    if (remaining.length > 0) { selectNote(remaining[0].id); }
+    if (remaining.length > 0) selectNote(remaining[0].id, remaining);
     else { setSelectedId(null); setDraft({ title: '', content: '' }); }
   };
 
-  const handleCreateFolder = async () => {
-    const name = prompt('Ordner-Name:');
-    if (!name?.trim()) return;
-    const folder = await createNoteFolder({ startup_id: startupId, name: name.trim() });
-    setFolders((prev) => [...prev, folder]);
-    setExpanded((s) => new Set([...s, folder.id]));
-  };
-
+  // ── Folder actions ──
   const handleDeleteFolder = async (id: string) => {
     if (!confirm('Ordner und alle Notizen darin löschen?')) return;
     await deleteNoteFolder(id);
@@ -254,7 +409,7 @@ export default function NotesView({ startupId, initialNoteId }: Props) {
     setRenamingFolder(null);
   };
 
-  // Drag & drop notes to folders
+  // ── Drag & drop ──
   const handleDrop = async (targetFolderId: string | null) => {
     if (!dragNoteId) return;
     const updated = await updateNote(dragNoteId, { folder_id: targetFolderId });
@@ -263,27 +418,16 @@ export default function NotesView({ startupId, initialNoteId }: Props) {
     setDragOverFolder(null);
   };
 
-  // Backlinks
-  const backlinks = selectedId
-    ? notes.filter((n) => n.id !== selectedId && n.content.includes(selectedId))
-    : [];
-
-  // Search filter
+  // ── Derived ──
+  const backlinks   = selectedId ? notes.filter((n) => n.id !== selectedId && n.content.includes(selectedId)) : [];
   const filteredNotes = search
-    ? notes.filter(
-        (n) =>
-          n.title.toLowerCase().includes(search.toLowerCase()) ||
-          n.content.toLowerCase().includes(search.toLowerCase()),
-      )
+    ? notes.filter((n) => n.title.toLowerCase().includes(search.toLowerCase()) || n.content.toLowerCase().includes(search.toLowerCase()))
     : null;
-
   const selectedNote = notes.find((n) => n.id === selectedId);
 
-  // ── Loading ──
   if (loading) return <div className="flex-1 flex items-center justify-center text-sm text-gray-400">Lädt …</div>;
 
   return (
-    // Full-height flex layout — breaks out of root layout padding
     <div className="-mx-4 -my-10 flex" style={{ height: 'calc(100vh - 49px)' }}>
 
       {/* ── SIDEBAR ── */}
@@ -294,27 +438,29 @@ export default function NotesView({ startupId, initialNoteId }: Props) {
         onDragLeave={() => setDragOverFolder(null)}
         onDrop={(e) => { e.preventDefault(); handleDrop(null); setDragOverFolder(null); }}
       >
-        {/* Sidebar header */}
+        {/* Header */}
         <div className="px-3 pt-4 pb-2 border-b border-gray-200">
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">Notizen</span>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-0.5">
+              {/* New folder */}
               <button
-                onClick={handleCreateFolder}
-                className="p-1 rounded text-gray-400 hover:text-gray-700 hover:bg-gray-200 transition-colors"
+                onClick={() => { setShowNewFolder(true); setShowNewNote(false); }}
+                className="p-1.5 rounded text-gray-400 hover:text-gray-700 hover:bg-gray-200 transition-colors"
                 title="Neuer Ordner"
               >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                   <path strokeLinecap="round" strokeLinejoin="round"
                     d="M12 10.5v6m3-3H9m4.06-7.19l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z" />
                 </svg>
               </button>
+              {/* New note */}
               <button
-                onClick={() => handleCreateNote()}
-                className="p-1 rounded text-gray-400 hover:text-gray-700 hover:bg-gray-200 transition-colors"
+                onClick={() => { setShowNewNote(true); setShowNewFolder(false); }}
+                className="p-1.5 rounded text-gray-400 hover:text-gray-700 hover:bg-gray-200 transition-colors"
                 title="Neue Notiz"
               >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                 </svg>
               </button>
@@ -336,12 +482,36 @@ export default function NotesView({ startupId, initialNoteId }: Props) {
             />
             {search && (
               <button onClick={() => setSearch('')}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">×</button>
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-sm">×</button>
             )}
           </div>
         </div>
 
-        {/* Folder rename modal */}
+        {/* Inline: new folder input */}
+        {showNewFolder && (
+          <div className="px-2 py-2 border-b border-gray-200">
+            <InlineInput
+              icon="📁"
+              placeholder="Ordner-Name …"
+              onConfirm={handleCreateFolder}
+              onCancel={() => setShowNewFolder(false)}
+            />
+          </div>
+        )}
+
+        {/* Inline: new note input */}
+        {showNewNote && (
+          <div className="px-2 py-2 border-b border-gray-200">
+            <InlineInput
+              icon="📄"
+              placeholder="Notiz-Titel …"
+              onConfirm={(name) => handleCreateNote(name)}
+              onCancel={() => setShowNewNote(false)}
+            />
+          </div>
+        )}
+
+        {/* Folder rename */}
         {renamingFolder && (
           <div className="px-3 py-2 border-b border-gray-200 bg-white">
             <input
@@ -361,7 +531,6 @@ export default function NotesView({ startupId, initialNoteId }: Props) {
         {/* File tree */}
         <div className="flex-1 overflow-y-auto px-2 py-2">
           {filteredNotes ? (
-            // Search results
             filteredNotes.length === 0 ? (
               <p className="text-xs text-gray-400 px-2 py-3">Keine Ergebnisse</p>
             ) : (
@@ -388,18 +557,18 @@ export default function NotesView({ startupId, initialNoteId }: Props) {
                 n.has(id) ? n.delete(id) : n.add(id);
                 return n;
               })}
-              onDropOnFolder={(id) => handleDrop(id)}
-              onDragNote={(id) => setDragNoteId(id)}
+              onDropOnFolder={handleDrop}
+              onDragNote={setDragNoteId}
               onRenameFolder={handleRenameFolder}
               onDeleteFolder={handleDeleteFolder}
             />
           )}
 
-          {notes.length === 0 && !search && (
+          {notes.length === 0 && !search && !showNewNote && (
             <div className="text-center py-8 px-3">
               <p className="text-xs text-gray-400 mb-3">Noch keine Notizen</p>
               <button
-                onClick={() => handleCreateNote()}
+                onClick={() => setShowNewNote(true)}
                 className="text-xs text-brand-500 hover:text-brand-600 font-medium"
               >
                 + Erste Notiz erstellen
@@ -409,31 +578,26 @@ export default function NotesView({ startupId, initialNoteId }: Props) {
         </div>
       </div>
 
-      {/* ── MAIN EDITOR AREA ── */}
+      {/* ── EDITOR AREA ── */}
       {selectedNote ? (
         <div className="flex-1 flex flex-col overflow-hidden bg-white">
 
-          {/* Editor toolbar */}
+          {/* Top bar: title + controls */}
           <div className="flex items-center justify-between px-6 py-3 border-b border-gray-100 shrink-0">
-            {/* Title */}
             <input
               value={draft.title}
               onChange={(e) => handleContentChange('title', e.target.value)}
               placeholder="Titel"
               className="flex-1 text-xl font-bold focus:outline-none bg-transparent mr-4 truncate"
             />
-
-            {/* Controls */}
             <div className="flex items-center gap-3 shrink-0">
-              {/* Save status */}
               <span className={`text-xs transition-colors ${
-                saveStatus === 'saved'   ? 'text-green-500' :
-                saveStatus === 'saving'  ? 'text-gray-400' : 'text-yellow-500'
+                saveStatus === 'saved'  ? 'text-green-500' :
+                saveStatus === 'saving' ? 'text-gray-400'  : 'text-yellow-500'
               }`}>
                 {saveStatus === 'saved' ? '✓ Gespeichert' : saveStatus === 'saving' ? 'Speichert …' : '● Ungespeichert'}
               </span>
 
-              {/* Edit / Preview toggle */}
               <div className="flex rounded-lg border border-gray-200 overflow-hidden">
                 {(['edit', 'preview'] as const).map((m) => (
                   <button
@@ -447,7 +611,6 @@ export default function NotesView({ startupId, initialNoteId }: Props) {
                 ))}
               </div>
 
-              {/* Delete */}
               <button
                 onClick={handleDeleteNote}
                 className="text-gray-300 hover:text-red-400 transition-colors"
@@ -461,14 +624,19 @@ export default function NotesView({ startupId, initialNoteId }: Props) {
             </div>
           </div>
 
-          {/* Note URL / permalink */}
-          <div className="px-6 py-1.5 border-b border-gray-50 bg-gray-50/50">
-            <span className="text-xs text-gray-400 font-mono">
+          {/* Permalink */}
+          <div className="px-6 py-1 border-b border-gray-50 bg-gray-50/40 shrink-0">
+            <span className="text-xs text-gray-400 font-mono select-all">
               /startups/{startupId}/notes/{selectedNote.id}
             </span>
           </div>
 
-          {/* Content area */}
+          {/* Formatting toolbar (edit mode only) */}
+          {editMode === 'edit' && (
+            <FormatToolbar onInsert={insertMarkdown} onLinePrefix={insertLinePrefix} />
+          )}
+
+          {/* Content */}
           <div className="flex-1 overflow-hidden flex flex-col">
             {editMode === 'edit' ? (
               <textarea
@@ -476,17 +644,21 @@ export default function NotesView({ startupId, initialNoteId }: Props) {
                 value={draft.content}
                 onChange={(e) => handleContentChange('content', e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder={`# Überschrift\n\nSchreibe hier in Markdown …\n\n- [ ] Aufgabe\n- **Fett**, *Kursiv*\n- \`Inline Code\`\n\n\`\`\`javascript\nconst hello = 'world';\n\`\`\``}
-                className="flex-1 w-full px-8 py-6 text-sm font-mono leading-relaxed
+                placeholder={'# Überschrift\n\nSchreibe hier in Markdown …\n\n- [ ] Aufgabe\n- **Fett**, *Kursiv*\n- `Inline Code`\n\n```\nCode Block\n```'}
+                className="flex-1 w-full px-8 py-5 text-sm font-mono leading-relaxed
                            focus:outline-none resize-none bg-white text-gray-800"
               />
             ) : (
               <div className="flex-1 overflow-y-auto px-8 py-6">
                 {draft.content ? (
-                  <div className="prose prose-sm max-w-none prose-headings:font-bold prose-a:text-brand-500 prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-pre:bg-gray-900 prose-pre:text-gray-100 prose-blockquote:border-brand-300 prose-blockquote:text-gray-600">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                      {draft.content}
-                    </ReactMarkdown>
+                  <div className="prose prose-sm max-w-none
+                                  prose-headings:font-bold prose-headings:text-gray-900
+                                  prose-a:text-brand-500 prose-a:no-underline hover:prose-a:underline
+                                  prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-code:before:content-none prose-code:after:content-none
+                                  prose-pre:bg-gray-900 prose-pre:text-gray-100
+                                  prose-blockquote:border-brand-300 prose-blockquote:text-gray-600
+                                  prose-li:my-0.5">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{draft.content}</ReactMarkdown>
                   </div>
                 ) : (
                   <p className="text-gray-400 text-sm italic">Keine Inhalte vorhanden.</p>
@@ -497,8 +669,8 @@ export default function NotesView({ startupId, initialNoteId }: Props) {
 
           {/* Backlinks */}
           {backlinks.length > 0 && (
-            <div className="border-t border-gray-100 px-8 py-4 bg-gray-50/50 shrink-0">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+            <div className="border-t border-gray-100 px-8 py-3 bg-gray-50/50 shrink-0">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
                 🔗 Backlinks ({backlinks.length})
               </p>
               <div className="flex flex-wrap gap-2">
@@ -517,7 +689,6 @@ export default function NotesView({ startupId, initialNoteId }: Props) {
           )}
         </div>
       ) : (
-        // Empty state
         <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center bg-white">
           <div className="text-5xl">📝</div>
           <div>
@@ -525,7 +696,7 @@ export default function NotesView({ startupId, initialNoteId }: Props) {
             <p className="text-sm text-gray-500 mt-1">Wähle eine Notiz aus oder erstelle eine neue.</p>
           </div>
           <button
-            onClick={() => handleCreateNote()}
+            onClick={() => setShowNewNote(true)}
             className="rounded-xl bg-brand-500 px-5 py-2.5 text-sm text-white font-semibold
                        hover:bg-brand-600 transition-colors"
           >
